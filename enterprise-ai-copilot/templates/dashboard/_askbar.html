@@ -1,0 +1,12 @@
+<section class="ask-bar mb-4">
+  <h2>{{ 'Good to see you' if not current_user else 'Hello, ' ~ current_user.full_name.split()[0] }}. What do you need today?</h2>
+  <p>Ask about policies, documents, deadlines or draft something — answers cite the files you can access.</p>
+  <form action="{{ url_for('chat.copilot') }}" method="get">
+    <input name="q" placeholder="e.g. How many days of annual leave do I get?" maxlength="1000" aria-label="Ask the AI Co-Pilot" required>
+    <button class="btn btn-primary" type="submit"><i class="fa-solid fa-paper-plane me-1"></i>Ask</button>
+  </form>
+  <div class="d-flex flex-wrap gap-2 mt-3">
+    {% for s in ['What tasks are due this week?', 'Summarise our leave policy', 'What are the IT security rules?'] %}
+    <a class="chip" href="{{ url_for('chat.copilot', q=s) }}">{{ s }}</a>{% endfor %}
+  </div>
+</section>

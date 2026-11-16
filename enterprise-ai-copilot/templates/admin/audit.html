@@ -1,0 +1,17 @@
+{% extends 'base.html' %}{% from '_macros.html' import empty, pager %}
+{% block title %}Audit logs{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Audit logs &amp; security</h1><p>Every sign-in, upload, deletion, task, account change and report is recorded.</p></div></div>
+<div class="row g-3 mb-3">{% for icon, label, val, bad in [('fa-clipboard-list','Events (24 h)',summary.events,false),('fa-user-lock','Failed logins (24 h)',summary.failed_logins,summary.failed_logins>0),('fa-ban','Access denied (24 h)',summary.denied,summary.denied>0),('fa-lock','Locked accounts',summary.locked,summary.locked>0)] %}
+<div class="col-6 col-lg-3"><div class="card kpi"><div class="kpi-ico" {% if bad %}style="background:#FBE5E3;color:#A42B24"{% endif %}><i class="fa-solid {{ icon }}"></i></div><div><div class="v">{{ val }}</div><div class="l">{{ label }}</div></div></div></div>{% endfor %}</div>
+<form class="row g-2 mb-3" method="get"><div class="col-md-3"><input class="form-control" name="q" value="{{ q }}" placeholder="Search user, details or IP"></div>
+  <div class="col-md-2"><select class="form-select" name="action"><option value="">All actions</option>{% for a in actions %}<option {{ 'selected' if a == action }}>{{ a }}</option>{% endfor %}</select></div>
+  <div class="col-md-2"><select class="form-select" name="status"><option value="">Any outcome</option>{% for s in ['success','failure','denied'] %}<option {{ 'selected' if s == status }}>{{ s }}</option>{% endfor %}</select></div>
+  <div class="col-6 col-md-2"><input class="form-control" type="date" name="start" value="{{ start }}"></div><div class="col-6 col-md-2"><input class="form-control" type="date" name="end" value="{{ end }}"></div>
+  <div class="col-auto"><button class="btn btn-primary">Filter</button></div></form>
+<div class="card">{% if pag.items %}<div class="table-responsive"><table class="table table-hover"><thead><tr><th class="ps-3">Time (UTC)</th><th>User</th><th>Action</th><th>Details</th><th>IP</th><th>Outcome</th></tr></thead><tbody>
+{% for l in pag.items %}<tr><td class="ps-3 text-nowrap">{{ l.created_at|dt('%d %b %Y %H:%M:%S') }}</td><td>{{ l.user_email or '—' }}</td><td><code>{{ l.action }}</code></td><td class="small">{{ l.details }}</td><td class="small">{{ l.ip_address or '—' }}</td>
+<td><span class="badge {{ {'success':'st-Completed','failure':'st-Overdue','denied':'prio-High'}[l.status] }}">{{ l.status }}</span></td></tr>{% endfor %}</tbody></table></div>
+{% else %}{{ empty('fa-shield-halved','No events match','Adjust the filters.') }}{% endif %}</div>
+{{ pager(pag, 'admin.audit', q=q, action=action, status=status, start=start, end=end) }}
+{% endblock %}

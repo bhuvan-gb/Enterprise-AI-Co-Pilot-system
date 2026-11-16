@@ -1,0 +1,15 @@
+{% extends 'base.html' %}{% from '_macros.html' import csrf, delete_btn, empty, demo %}
+{% block title %}Departments{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Departments</h1><p>Organise employees into departments.</p></div><a class="btn btn-ghost" href="{{ url_for('employees.directory') }}">Back to directory</a></div>
+<div class="row g-3"><div class="col-lg-4"><div class="card"><div class="card-header">Add department</div><div class="card-body"><form method="post">{{ csrf() }}
+  <div class="mb-2"><label class="form-label">Name</label><input class="form-control" name="name" required maxlength="100"></div>
+  <div class="mb-3"><label class="form-label">Description</label><input class="form-control" name="description" maxlength="255"></div><button class="btn btn-primary w-100">Create department</button></form></div></div></div>
+ <div class="col-lg-8"><div class="card">{% if rows %}<div class="table-responsive"><table class="table"><thead><tr><th class="ps-3">Department</th><th>Active staff</th><th class="text-end pe-3">Actions</th></tr></thead><tbody>
+  {% for d, n in rows %}<tr><td class="ps-3"><div class="fw-semibold">{{ d.name }}{{ demo(d) }}</div><div class="small text-muted">{{ d.description or '' }}</div></td><td>{{ n }}</td>
+  <td class="text-end pe-3 text-nowrap"><button class="btn btn-ghost btn-sm" data-bs-toggle="modal" data-bs-target="#edit{{ d.id }}"><i class="fa-solid fa-pen"></i></button> {{ delete_btn(url_for('employees.department_delete', did=d.id), 'Delete the ' ~ d.name ~ ' department?', '', 'btn-outline-danger btn-sm') }}</td></tr>
+  <div class="modal fade" id="edit{{ d.id }}" tabindex="-1"><div class="modal-dialog modal-dialog-centered"><form class="modal-content" method="post" action="{{ url_for('employees.department_edit', did=d.id) }}"><div class="modal-body p-4">{{ csrf() }}<h6>Edit department</h6>
+   <input class="form-control my-3" name="name" value="{{ d.name }}" required maxlength="100"><input class="form-control mb-3" name="description" value="{{ d.description or '' }}" maxlength="255" placeholder="Description">
+   <div class="d-flex justify-content-end gap-2"><button type="button" class="btn btn-ghost btn-sm" data-bs-dismiss="modal">Cancel</button><button class="btn btn-primary btn-sm">Save</button></div></div></form></div></div>{% endfor %}
+  </tbody></table></div>{% else %}{{ empty('fa-sitemap','No departments yet','Create your first department using the form.') }}{% endif %}</div></div></div>
+{% endblock %}

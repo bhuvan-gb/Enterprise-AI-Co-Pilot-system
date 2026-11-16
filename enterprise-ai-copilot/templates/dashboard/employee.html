@@ -1,0 +1,30 @@
+{% extends 'base.html' %}{% from '_macros.html' import empty, status_badge, prio_badge, demo, file_icon %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+{% include 'dashboard/_askbar.html' %}
+<div class="row g-3 mb-3">
+  {% set s = stats.status %}
+  {% for i in range(4) %}<div class="col-6 col-lg-3"><div class="card kpi"><div class="kpi-ico"><i class="fa-solid {{ ['fa-circle-dot','fa-spinner','fa-circle-check','fa-triangle-exclamation'][i] }}"></i></div>
+    <div><div class="v">{{ s['values'][i] }}</div><div class="l">{{ s['labels'][i] }}</div></div></div></div>{% endfor %}
+</div>
+<div class="row g-3">
+  <div class="col-lg-7"><div class="card h-100"><div class="card-header d-flex justify-content-between">My upcoming tasks<a class="small fw-semibold" href="{{ url_for('tasks.list_tasks') }}">All tasks</a></div>
+    {% if upcoming %}<div class="list-group list-group-flush">{% for t in upcoming %}
+      <a class="list-group-item list-group-item-action d-flex justify-content-between align-items-center bg-transparent" href="{{ url_for('tasks.detail', tid=t.id) }}">
+        <div><div class="fw-semibold">{{ t.title }}{{ demo(t) }}</div><div class="small text-muted">{{ t.category }} · due {{ t.due_date|d }}</div></div>
+        <div class="d-flex gap-1">{{ prio_badge(t.priority) }}{{ status_badge(t) }}</div></a>{% endfor %}</div>
+    {% else %}{{ empty('fa-mug-hot','Nothing on your plate','Tasks assigned to you will appear here.', url_for('tasks.new'), 'Create a task') }}{% endif %}</div></div>
+  <div class="col-lg-5"><div class="card mb-3"><div class="card-header">My task status</div><div class="card-body"><div class="chart-box" style="height:220px"><canvas id="cStatus"></canvas></div></div></div>
+    <div class="card"><div class="card-header">Announcements</div><div class="card-body py-2">
+      {% for a in announcements %}<div class="py-2 {{ 'border-top' if not loop.first }}"><div class="fw-semibold">{{ a.title }}{{ demo(a) }}</div><div class="small text-muted">{{ a.body|truncate(120) }}</div></div>
+      {% else %}{{ empty('fa-bullhorn','No announcements') }}{% endfor %}</div></div></div>
+  <div class="col-12"><div class="card"><div class="card-header d-flex justify-content-between">Recent documents<a class="small fw-semibold" href="{{ url_for('documents.library') }}">Library</a></div>
+    {% if docs %}<div class="list-group list-group-flush">{% for d in docs %}<a class="list-group-item list-group-item-action d-flex gap-3 align-items-center bg-transparent" href="{{ url_for('documents.view', doc_id=d.id) }}">{{ file_icon(d.file_type) }}<div class="flex-grow-1"><div class="fw-semibold">{{ d.title }}{{ demo(d) }}</div><div class="small text-muted">{{ d.category }} · {{ d.created_at|d }}</div></div></a>{% endfor %}</div>
+    {% else %}{{ empty('fa-folder-open','No documents yet','Upload a PDF, DOCX or TXT file to ask questions about it.', url_for('documents.library'), 'Open library') }}{% endif %}</div></div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="{{ url_for('static', filename='js/charts.js') }}"></script>
+<script>const S={{ stats.status|tojson }};
+if (hasData(S.values)) mkChart("cStatus","doughnut",{labels:S.labels,datasets:[{data:S.values,backgroundColor:S.labels.map(l=>STATUS_COLORS[l]),borderWidth:0}]},{cutout:"68%"}); else showEmpty("cStatus");</script>{% endblock %}

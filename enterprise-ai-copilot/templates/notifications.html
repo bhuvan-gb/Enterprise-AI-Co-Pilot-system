@@ -1,0 +1,22 @@
+{% extends 'base.html' %}{% from '_macros.html' import csrf, empty, pager, demo, delete_btn %}
+{% block title %}Notifications{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Notifications</h1><p>Task assignments, deadlines, new documents and announcements.</p></div>
+  <form method="post" action="{{ url_for('main.notifications_read_all') }}">{{ csrf() }}<button class="btn btn-ghost"><i class="fa-solid fa-check-double me-1"></i>Mark all as read</button></form></div>
+<div class="row g-3"><div class="col-lg-{{ 7 if current_user.is_admin else 8 }}">
+  <ul class="nav nav-pills mb-3"><li class="nav-item"><a class="nav-link {{ 'active' if flt == 'all' }}" href="{{ url_for('main.notifications') }}">All</a></li><li class="nav-item"><a class="nav-link {{ 'active' if flt == 'unread' }}" href="{{ url_for('main.notifications', filter='unread') }}">Unread</a></li></ul>
+  <div class="card">{% if pag.items %}{% for n in pag.items %}
+    <div class="notif-item {{ '' if n.is_read else 'unread' }}"><div class="kpi-ico" style="width:38px;height:38px"><i class="fa-solid {{ {'task':'fa-list-check','deadline':'fa-clock','document':'fa-file-lines','announcement':'fa-bullhorn'}.get(n.category, 'fa-bell') }}"></i></div>
+      <div class="flex-grow-1"><div class="fw-semibold">{{ n.title }}{{ demo(n) }}</div><div class="small text-muted">{{ n.message }}</div><div class="small text-muted">{{ n.created_at|dt }}</div>
+        {% if n.link %}<a class="small fw-semibold" href="{{ n.link }}">Open</a>{% endif %}</div>
+      <div class="d-flex gap-1 align-self-start">{% if not n.is_read %}<form method="post" action="{{ url_for('main.notification_read', nid=n.id) }}">{{ csrf() }}<button class="btn btn-ghost btn-sm" title="Mark as read"><i class="fa-solid fa-check"></i></button></form>{% endif %}
+      <form method="post" action="{{ url_for('main.notification_delete', nid=n.id) }}">{{ csrf() }}<button class="btn btn-ghost btn-sm" title="Delete"><i class="fa-regular fa-trash-can"></i></button></form></div></div>{% endfor %}
+  {% else %}{{ empty('fa-bell-slash','No notifications','You are all caught up.') }}{% endif %}</div>{{ pager(pag, 'main.notifications', filter=flt) }}</div>
+ <div class="col-lg-{{ 5 if current_user.is_admin else 4 }}">
+  {% if current_user.is_admin %}<div class="card mb-3"><div class="card-header">Post an announcement</div><div class="card-body"><form method="post" action="{{ url_for('admin.announcement_create') }}">{{ csrf() }}
+    <input class="form-control mb-2" name="title" placeholder="Title" required maxlength="200"><textarea class="form-control mb-2" name="body" rows="3" placeholder="Message to everyone" required></textarea>
+    <div class="d-flex justify-content-between align-items-center"><div class="form-check"><input class="form-check-input" type="checkbox" name="is_pinned" id="pin"><label class="form-check-label" for="pin">Pin</label></div><button class="btn btn-primary btn-sm">Send to all</button></div></form></div></div>{% endif %}
+  <div class="card"><div class="card-header">Recent announcements</div><div class="card-body py-2">{% for a in announcements %}<div class="py-2 {{ 'border-top' if not loop.first }}"><div class="d-flex justify-content-between"><div class="fw-semibold">{% if a.is_pinned %}<i class="fa-solid fa-thumbtack text-muted me-1"></i>{% endif %}{{ a.title }}{{ demo(a) }}</div>
+    {% if current_user.is_admin %}<form method="post" action="{{ url_for('admin.announcement_delete', aid=a.id) }}" data-confirm="Remove this announcement?">{{ csrf() }}<button class="btn btn-sm text-muted p-0" aria-label="Remove"><i class="fa-solid fa-xmark"></i></button></form>{% endif %}</div>
+    <div class="small text-muted">{{ a.created_at|d }} · {{ a.body }}</div></div>{% else %}<div class="text-muted small py-3">No announcements.</div>{% endfor %}</div></div></div></div>
+{% endblock %}

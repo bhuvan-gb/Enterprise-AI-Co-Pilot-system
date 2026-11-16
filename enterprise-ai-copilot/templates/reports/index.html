@@ -1,0 +1,15 @@
+{% extends 'base.html' %}{% from '_macros.html' import csrf, empty, pager, delete_btn %}
+{% block title %}Reports{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Reports</h1><p>Generate summaries from live data and export them as PDF.{% if not live %} <span class="mode-badge mode-demo">Demo mode: summaries are automatic, not AI-written</span>{% endif %}</p></div></div>
+<div class="row g-3"><div class="col-lg-4"><div class="card"><div class="card-header">Generate a report</div><div class="card-body"><form method="post" action="{{ url_for('reports.generate') }}">{{ csrf() }}
+  <div class="mb-2"><label class="form-label">Report type</label><select class="form-select" name="report_type">{% for k, v in types.items() %}<option value="{{ k }}">{{ v }}</option>{% endfor %}</select></div>
+  <div class="row g-2 mb-2"><div class="col-6"><label class="form-label">From</label><input class="form-control" type="date" name="start" value="{{ month_ago.isoformat() }}"></div><div class="col-6"><label class="form-label">To</label><input class="form-control" type="date" name="end" value="{{ today.isoformat() }}"></div></div>
+  {% if current_user.is_admin %}<div class="mb-3"><label class="form-label">Department</label><select class="form-select" name="department"><option value="">All departments</option>{% for d in departments %}<option value="{{ d.id }}">{{ d.name }}</option>{% endfor %}</select></div>{% endif %}
+  <button class="btn btn-primary w-100"><i class="fa-solid fa-file-circle-plus me-1"></i>Generate report</button></form></div></div></div>
+ <div class="col-lg-8"><div class="card"><div class="card-header">Report history</div>
+  {% if pag.items %}<div class="table-responsive"><table class="table table-hover"><thead><tr><th class="ps-3">Report</th><th>By</th><th>Created</th><th class="text-end pe-3">Actions</th></tr></thead><tbody>
+  {% for r in pag.items %}<tr><td class="ps-3"><a class="fw-semibold" href="{{ url_for('reports.view', rid=r.id) }}">{{ r.title }}</a></td><td>{{ r.author.full_name }}</td><td>{{ r.created_at|dt }}</td>
+  <td class="text-end pe-3 text-nowrap"><a class="btn btn-ghost btn-sm" href="{{ url_for('reports.view', rid=r.id) }}" title="Preview"><i class="fa-regular fa-eye"></i></a> <a class="btn btn-ghost btn-sm" href="{{ url_for('reports.download', rid=r.id) }}" title="Download PDF"><i class="fa-solid fa-file-pdf"></i></a> {{ delete_btn(url_for('reports.delete', rid=r.id), 'Delete this report?', '', 'btn-outline-danger btn-sm') }}</td></tr>{% endfor %}</tbody></table></div>
+  {% else %}{{ empty('fa-file-lines','No reports yet','Choose a report type and generate your first one.') }}{% endif %}</div>{{ pager(pag, 'reports.index') }}</div></div>
+{% endblock %}

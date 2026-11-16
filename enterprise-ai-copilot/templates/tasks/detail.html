@@ -1,0 +1,27 @@
+{% extends 'base.html' %}{% from '_macros.html' import avatar, csrf, delete_btn, status_badge, prio_badge, demo %}
+{% block title %}{{ task.title }}{% endblock %}
+{% block content %}
+{% set done, total = task.subtask_progress %}
+<div class="page-head"><div><h1>{{ task.title }}{{ demo(task) }}</h1><p class="d-flex gap-2 align-items-center flex-wrap">{{ status_badge(task) }}{{ prio_badge(task.priority) }}<span>{{ task.category }}</span></p></div>
+  <div class="d-flex gap-2"><a class="btn btn-ghost" href="{{ url_for('tasks.list_tasks') }}">Back</a>
+  {% if can_edit %}<a class="btn btn-primary" href="{{ url_for('tasks.edit', tid=task.id) }}"><i class="fa-solid fa-pen me-1"></i>Edit</a>{{ delete_btn(url_for('tasks.delete', tid=task.id), 'Delete this task and its subtasks?', 'Delete', 'btn-outline-danger') }}{% endif %}</div></div>
+<div class="row g-3"><div class="col-lg-8">
+  <div class="card mb-3"><div class="card-header">Description</div><div class="card-body prewrap">{{ task.description or 'No description provided.' }}</div></div>
+  <div class="card"><div class="card-header d-flex justify-content-between align-items-center">Subtasks <span class="d-flex gap-2 align-items-center"><span class="text-muted small">{{ done }}/{{ total }} done</span>
+    <form method="post" action="{{ url_for('tasks.ai_breakdown', tid=task.id) }}">{{ csrf() }}<button class="btn btn-ghost btn-sm"><i class="fa-solid fa-wand-magic-sparkles me-1"></i>Break down with AI</button></form></span></div>
+    {% if total %}<div class="progress mx-3 mt-3"><div class="progress-bar" style="width:{{ (done * 100 / total)|round|int }}%"></div></div>{% endif %}
+    <div class="list-group list-group-flush">{% for s in task.subtasks %}<div class="list-group-item bg-transparent d-flex align-items-center gap-3">
+      <form method="post" action="{{ url_for('tasks.subtask_toggle', tid=task.id, sid=s.id) }}" data-no-lock="1">{{ csrf() }}<button class="btn btn-sm {{ 'btn-primary' if s.is_done else 'btn-ghost' }}" style="width:30px;height:30px;padding:0" aria-label="Toggle"><i class="fa-solid fa-check"></i></button></form>
+      <span class="flex-grow-1 {{ 'text-decoration-line-through text-muted' if s.is_done }}">{{ s.title }}</span>
+      <form method="post" action="{{ url_for('tasks.subtask_delete', tid=task.id, sid=s.id) }}">{{ csrf() }}<button class="btn btn-sm text-muted" aria-label="Remove"><i class="fa-solid fa-xmark"></i></button></form></div>
+    {% else %}<div class="p-3 text-muted">No subtasks yet. Add one below or let AI propose a breakdown.</div>{% endfor %}</div>
+    <form class="d-flex gap-2 p-3 border-top" method="post" action="{{ url_for('tasks.subtask_add', tid=task.id) }}">{{ csrf() }}<input class="form-control" name="title" placeholder="Add a subtask" maxlength="190" required><button class="btn btn-primary">Add</button></form></div></div>
+<div class="col-lg-4"><div class="card mb-3"><div class="card-header">Update status</div><div class="card-body d-grid gap-2">
+  {% for s in statuses %}<form method="post" action="{{ url_for('tasks.set_status', tid=task.id) }}">{{ csrf() }}<input type="hidden" name="status" value="{{ s }}"><button class="btn w-100 {{ 'btn-primary' if task.status == s else 'btn-ghost' }}" {{ 'disabled' if task.status == s }}>{{ s }}</button></form>{% endfor %}</div></div>
+  <div class="card"><div class="card-header">Details</div><div class="card-body small"><dl class="row mb-0">
+   <dt class="col-5 text-muted">Assignee</dt><dd class="col-7">{% if task.assignee %}{{ task.assignee.full_name }}{% else %}Unassigned{% endif %}</dd>
+   <dt class="col-5 text-muted">Created by</dt><dd class="col-7">{{ task.creator.full_name }}</dd>
+   <dt class="col-5 text-muted">Deadline</dt><dd class="col-7">{{ task.due_date|d }}</dd>
+   <dt class="col-5 text-muted">Created</dt><dd class="col-7">{{ task.created_at|d }}</dd>
+   <dt class="col-5 text-muted">Completed</dt><dd class="col-7">{{ task.completed_at|d }}</dd></dl></div></div></div></div>
+{% endblock %}

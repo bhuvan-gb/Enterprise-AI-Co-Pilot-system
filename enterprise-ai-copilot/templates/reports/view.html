@@ -1,0 +1,10 @@
+{% extends 'base.html' %}
+{% block title %}{{ r.title }}{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>{{ c.title }}</h1><p>{{ c.period }} · {{ c.scope }} · generated {{ r.created_at|dt }} by {{ r.author.full_name }}</p></div>
+  <div class="d-flex gap-2"><a class="btn btn-ghost" href="{{ url_for('reports.index') }}">Back</a><a class="btn btn-ghost" href="{{ url_for('reports.csv_export', rid=r.id) }}"><i class="fa-solid fa-file-csv me-1"></i>CSV</a><a class="btn btn-primary" href="{{ url_for('reports.download', rid=r.id) }}"><i class="fa-solid fa-file-pdf me-1"></i>Download PDF</a></div></div>
+<div class="card mb-3"><div class="card-header d-flex justify-content-between">Summary <span class="mode-badge {{ 'mode-live' if c.summary_mode == 'live' else 'mode-demo' }}">{{ 'Gemini' if c.summary_mode == 'live' else 'Automatic — not AI-generated' }}</span></div><div class="card-body prewrap">{{ c.summary }}</div></div>
+<div class="row g-3 mb-3">{% for label, value in c.stats %}<div class="col-6 col-md-3 col-xl-2"><div class="card kpi d-block"><div class="v">{{ value }}</div><div class="l">{{ label }}</div></div></div>{% endfor %}</div>
+{% for t in c.tables %}<div class="card mb-3"><div class="card-header">{{ t.title }}</div>{% if t.rows %}<div class="table-responsive"><table class="table table-hover"><thead><tr>{% for col in t.columns %}<th {% if loop.first %}class="ps-3"{% endif %}>{{ col }}</th>{% endfor %}</tr></thead><tbody>
+{% for row in t.rows %}<tr>{% for v in row %}<td {% if loop.first %}class="ps-3"{% endif %}>{{ v }}</td>{% endfor %}</tr>{% endfor %}</tbody></table></div>{% else %}<div class="card-body text-muted">No records for this period.</div>{% endif %}</div>{% endfor %}
+{% endblock %}

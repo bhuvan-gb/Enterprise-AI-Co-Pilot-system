@@ -1,0 +1,24 @@
+# Web framework
+Flask>=3.0,<4.0
+Werkzeug>=3.0
+Flask-SQLAlchemy>=3.1
+SQLAlchemy>=2.0
+Flask-Login>=0.6.3
+Flask-WTF>=1.2
+Flask-Migrate>=4.0
+python-dotenv>=1.0
+
+# Database drivers (PyMySQL needs `cryptography` for MySQL 8 caching_sha2_password)
+PyMySQL>=1.1
+cryptography>=42.0
+
+# Documents, data and reports
+pypdf>=4.0
+python-docx>=1.1
+pandas>=2.1
+numpy>=1.26
+reportlab>=4.0
+
+# AI / RAG  (Gemini is called over HTTPS, no SDK required)
+sentence-transformers>=2.7
+faiss-cpu>=1.8

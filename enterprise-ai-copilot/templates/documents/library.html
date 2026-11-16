@@ -1,0 +1,58 @@
+{% extends 'base.html' %}{% from '_macros.html' import empty, file_icon, pager, demo %}
+{% block title %}Documents{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Documents</h1><p>Upload files, then summarise them or ask questions. Only people you share with can see them.</p></div>
+  <form class="d-flex gap-2" method="get"><input class="form-control" name="q" value="{{ q }}" placeholder="Search titles and keywords" style="width:230px">
+    <select class="form-select w-auto" name="category" onchange="this.form.submit()"><option value="">All categories</option>{% for c in categories %}<option {{ 'selected' if c == cat }}>{{ c }}</option>{% endfor %}</select>
+    <button class="btn btn-ghost" type="submit"><i class="fa-solid fa-magnifying-glass"></i></button></form></div>
+{% if not backend.semantic %}<div class="alert alert-info py-2 small"><i class="fa-solid fa-circle-info me-1"></i>Using the lightweight keyword embedder (<code>{{ backend.name }}</code>). Install <code>sentence-transformers</code> for true semantic search — existing documents re-index automatically.</div>{% endif %}
+<div class="card mb-4"><div class="card-body">
+  <div class="row g-3 align-items-stretch">
+    <div class="col-lg-7"><div class="dropzone h-100" id="drop" tabindex="0" role="button" aria-label="Upload documents"><i class="fa-solid fa-cloud-arrow-up"></i>
+      <div class="fw-bold mt-2">Drag &amp; drop files here, or click to browse</div><div class="text-muted small">PDF, DOCX or TXT · up to {{ config.MAX_CONTENT_LENGTH // 1048576 }} MB each</div>
+      <input type="file" id="fileInput" multiple accept=".pdf,.docx,.txt" hidden></div></div>
+    <div class="col-lg-5"><div class="mb-2"><label class="form-label">Category</label><select class="form-select" id="upCategory">{% for c in categories %}<option>{{ c }}</option>{% endfor %}</select></div>
+      <div class="mb-2"><label class="form-label">Who can see it?</label><select class="form-select" id="upVisibility">{% for k, v in visibilities.items() %}<option value="{{ k }}" {{ 'disabled' if k == 'department' and not current_user.department_id }}>{{ v }}</option>{% endfor %}</select></div>
+      <div id="upList" class="small"></div></div></div></div></div>
+{% if pag.items %}
+<div class="row g-3">{% for d in pag.items %}
+  <div class="col-md-6 col-xl-4"><div class="card h-100"><div class="card-body d-flex flex-column">
+    <div class="d-flex gap-3">{{ file_icon(d.file_type) }}<div class="min-w-0 flex-grow-1"><a class="fw-bold d-block text-truncate" href="{{ url_for('documents.view', doc_id=d.id) }}">{{ d.title }}</a>{{ demo(d) }}
+      <div class="small text-muted">{{ d.category }} · {{ d.file_size|filesize }} · {{ d.created_at|d }}</div></div></div>
+    <p class="small text-muted my-3 flex-grow-1">{{ (d.summary or d.status_message or 'Processing… the summary will appear here.')|truncate(150) }}</p>
+    <div class="d-flex justify-content-between align-items-center"><span class="badge st-{{ d.status }}" data-doc="{{ d.id }}" data-status="{{ d.status }}">{{ d.status|capitalize }}</span>
+      <span class="small text-muted"><i class="fa-regular fa-user me-1"></i>{{ d.owner.full_name }}</span></div></div></div></div>{% endfor %}</div>
+{{ pager(pag, 'documents.library', q=q, category=cat) }}
+{% else %}<div class="card">{{ empty('fa-folder-open', 'No documents found', 'Upload your first document above to build your searchable library.') }}</div>{% endif %}
+{% endblock %}
+{% block scripts %}
+<script>
+const drop = document.getElementById("drop"), fi = document.getElementById("fileInput"), list = document.getElementById("upList");
+drop.onclick = () => fi.click(); drop.onkeydown = e => { if (e.key === "Enter" || e.key === " ") fi.click(); };
+["dragenter", "dragover"].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add("over"); }));
+["dragleave", "drop"].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove("over"); }));
+drop.addEventListener("drop", e => upload(e.dataTransfer.files)); fi.onchange = () => upload(fi.files);
+function upload(files) {
+  [...files].forEach(file => {
+    const row = document.createElement("div"); row.className = "mb-2";
+    row.innerHTML = `<div class="d-flex justify-content-between"><span class="text-truncate me-2"></span><span class="pct">0%</span></div><div class="progress"><div class="progress-bar" style="width:0"></div></div>`;
+    row.querySelector("span").textContent = file.name; list.appendChild(row);
+    const fd = new FormData(); fd.append("files", file); fd.append("category", document.getElementById("upCategory").value); fd.append("visibility", document.getElementById("upVisibility").value);
+    const x = new XMLHttpRequest(); x.open("POST", "{{ url_for('documents.upload') }}");
+    x.setRequestHeader("X-CSRFToken", csrfToken()); x.setRequestHeader("X-Requested-With", "fetch");
+    x.upload.onprogress = e => { if (e.lengthComputable) { const p = Math.round(e.loaded * 100 / e.total); row.querySelector(".progress-bar").style.width = p + "%"; row.querySelector(".pct").textContent = p + "%"; } };
+    x.onload = () => { let r = {}; try { r = JSON.parse(x.responseText); } catch (e) {}
+      if (x.status === 200) { row.querySelector(".pct").textContent = "Uploaded"; toast(`${file.name} uploaded — processing started`, "success"); setTimeout(() => location.reload(), 900); }
+      else { row.querySelector(".pct").textContent = "Failed"; row.querySelector(".progress-bar").classList.add("bg-danger"); toast((r.errors && r.errors[0]) || r.error || "Upload failed", "danger"); } };
+    x.onerror = () => toast("Network error during upload", "danger"); x.send(fd);
+  });
+}
+{% if processing %}
+(async function poll() {
+  const pending = [...document.querySelectorAll('[data-status="processing"]')]; if (!pending.length) return;
+  let changed = false;
+  for (const el of pending) { try { const r = await api(`/documents/${el.dataset.doc}/status`, { method: "GET" }); if (r.status !== "processing") changed = true; } catch (e) {} }
+  if (changed) location.reload(); else setTimeout(poll, 3000);
+})();
+{% endif %}
+</script>{% endblock %}

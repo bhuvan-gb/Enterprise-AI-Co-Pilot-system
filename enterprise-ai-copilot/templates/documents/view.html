@@ -1,0 +1,78 @@
+{% extends 'base.html' %}{% from '_macros.html' import file_icon, csrf, delete_btn, demo %}
+{% block title %}{{ doc.title }}{% endblock %}
+{% block content %}
+<div class="page-head"><div class="d-flex gap-3 align-items-center">{{ file_icon(doc.file_type) }}<div><h1>{{ doc.title }}{{ demo(doc) }}</h1>
+  <p>{{ doc.category }} · {{ doc.file_size|filesize }}{% if doc.page_count %} · {{ doc.page_count }} pages{% endif %} · uploaded {{ doc.created_at|d }} by {{ doc.owner.full_name }}</p></div></div>
+  <div class="d-flex gap-2"><a class="btn btn-ghost" href="{{ url_for('documents.file', doc_id=doc.id, download=1) }}"><i class="fa-solid fa-download me-1"></i>Download</a>
+  <a class="btn btn-ghost" href="{{ url_for('documents.library') }}">Back</a></div></div>
+
+{% if doc.status == 'processing' %}<div class="alert alert-warning"><span class="spinner-border spinner-border-sm me-2"></span>Processing: extracting text, chunking and building embeddings. This page refreshes automatically.</div>
+{% elif doc.status == 'failed' %}<div class="alert alert-danger"><strong>Processing failed.</strong> {{ doc.status_message }}
+  <form class="d-inline ms-2" method="post" action="{{ url_for('documents.reprocess', doc_id=doc.id) }}">{{ csrf() }}{% if can_manage %}<button class="btn btn-sm btn-danger">Retry</button>{% endif %}</form></div>{% endif %}
+
+<div class="row g-3">
+ <div class="col-lg-8">
+  <div class="card mb-3"><div class="card-header d-flex justify-content-between align-items-center">Summary
+    <span><span class="mode-badge {{ 'mode-live' if doc.ai_mode == 'gemini' else 'mode-demo' }} me-2" id="sumMode">{{ 'AI summary (Gemini)' if doc.ai_mode == 'gemini' else 'Automatic extract — not AI' }}</span>
+    <button class="btn btn-primary btn-sm" id="sumBtn" {{ 'disabled' if doc.status != 'ready' }}><i class="fa-solid fa-wand-magic-sparkles me-1"></i>{{ 'Summarise with AI' if live else 'Refresh extract' }}</button></span></div>
+    <div class="card-body"><p class="prewrap mb-3" id="sumText">{{ doc.summary or 'The summary appears when processing completes.' }}</p>
+      <h6 class="mb-2">Key points</h6><ul id="pts" class="mb-3">{% for p in doc.point_list %}<li>{{ p }}</li>{% else %}<li class="text-muted">None yet.</li>{% endfor %}</ul>
+      <h6 class="mb-2">Keywords</h6><div id="kws" class="d-flex flex-wrap gap-1">{% for k in doc.keyword_list %}<span class="chip" style="cursor:default">{{ k }}</span>{% else %}<span class="text-muted">None yet.</span>{% endfor %}</div></div></div>
+
+  <div class="card mb-3"><div class="card-header">Ask this document</div><div class="card-body">
+    <form id="askForm" class="d-flex gap-2 mb-3"><input class="form-control" id="q" placeholder="e.g. What is the notice period?" maxlength="1000" required {{ 'disabled' if doc.status != 'ready' }}>
+      <button class="btn btn-primary" id="askBtn" type="submit" {{ 'disabled' if doc.status != 'ready' }}>Ask</button></form>
+    <div id="answer"></div></div></div>
+
+  <div class="card"><div class="card-header">Preview</div>
+    {% if doc.file_type == 'pdf' %}<iframe src="{{ url_for('documents.file', doc_id=doc.id) }}" style="width:100%;height:560px;border:0;border-radius:0 0 14px 14px" title="PDF preview"></iframe>
+    {% elif preview %}<div class="card-body"><div class="prewrap small">{{ preview }}{% if preview|length >= 3500 %}…{% endif %}</div></div>
+    {% else %}<div class="card-body text-muted">A preview will be available once processing completes.</div>{% endif %}</div>
+ </div>
+ <div class="col-lg-4">
+  <div class="card mb-3"><div class="card-header">Details</div><div class="card-body small">
+    <dl class="row mb-0"><dt class="col-5 text-muted fw-semibold">Status</dt><dd class="col-7"><span class="badge st-{{ doc.status }}">{{ doc.status|capitalize }}</span></dd>
+    <dt class="col-5 text-muted fw-semibold">Visibility</dt><dd class="col-7">{{ visibilities[doc.visibility] }}</dd>
+    <dt class="col-5 text-muted fw-semibold">Department</dt><dd class="col-7">{{ doc.department.name if doc.department else '—' }}</dd>
+    <dt class="col-5 text-muted fw-semibold">File</dt><dd class="col-7 text-break">{{ doc.filename }}</dd>
+    <dt class="col-5 text-muted fw-semibold">Chunks</dt><dd class="col-7">{{ chunk_count }}</dd></dl></div></div>
+  {% if can_manage %}<div class="card mb-3"><div class="card-header">Edit</div><div class="card-body">
+    <form method="post" action="{{ url_for('documents.update', doc_id=doc.id) }}">{{ csrf() }}
+      <div class="mb-2"><label class="form-label">Title</label><input class="form-control" name="title" value="{{ doc.title }}" maxlength="250"></div>
+      <div class="mb-2"><label class="form-label">Category</label><select class="form-select" name="category">{% for c in categories %}<option {{ 'selected' if c == doc.category }}>{{ c }}</option>{% endfor %}</select></div>
+      <div class="mb-2"><label class="form-label">Visibility</label><select class="form-select" name="visibility">{% for k, v in visibilities.items() %}<option value="{{ k }}" {{ 'selected' if k == doc.visibility }}>{{ v }}</option>{% endfor %}</select></div>
+      <div class="mb-3"><label class="form-label">Description</label><textarea class="form-control" name="description" rows="2" maxlength="490">{{ doc.description or '' }}</textarea></div>
+      <button class="btn btn-primary btn-sm w-100">Save changes</button></form>
+    <hr>{{ delete_btn(url_for('documents.delete', doc_id=doc.id), 'Delete this document and its search index permanently?', 'Delete document', 'btn-outline-danger btn-sm w-100') }}</div></div>{% endif %}
+ </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+const DOC = {{ doc.id }};
+{% if doc.status == 'processing' %}(async function poll(){ try { const r = await api(`/documents/${DOC}/status`, {method:"GET"}); if (r.status !== "processing") return location.reload(); } catch(e){} setTimeout(poll, 3000); })();{% endif %}
+document.getElementById("sumBtn").onclick = async function () {
+  const b = this; b.disabled = true; const old = b.innerHTML; b.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Working…';
+  try {
+    const r = await api(`/documents/${DOC}/summarize`);
+    document.getElementById("sumText").textContent = r.summary;
+    document.getElementById("pts").innerHTML = r.key_points.map(p => `<li>${escapeHtml(p)}</li>`).join("") || "<li class='text-muted'>None</li>";
+    document.getElementById("kws").innerHTML = r.keywords.map(k => `<span class="chip" style="cursor:default">${escapeHtml(k)}</span>`).join("");
+    const m = document.getElementById("sumMode"); m.className = "mode-badge me-2 " + (r.mode === "gemini" ? "mode-live" : "mode-demo"); m.textContent = r.mode === "gemini" ? "AI summary (Gemini)" : "Automatic extract — not AI";
+    toast("Summary updated", "success");
+  } catch (e) { toast(e.message, "danger"); }
+  b.disabled = false; b.innerHTML = old;
+};
+document.getElementById("askForm").onsubmit = async e => {
+  e.preventDefault(); const q = document.getElementById("q").value.trim(); if (!q) return;
+  const box = document.getElementById("answer"), btn = document.getElementById("askBtn"); btn.disabled = true;
+  box.innerHTML = '<div class="typing p-2"><span></span><span></span><span></span></div>';
+  try {
+    const r = await api(`/documents/${DOC}/ask`, { json: { question: q } });
+    const src = (r.sources || []).map(s => `<span class="src">[${s.n}] ${s.page ? "page " + s.page : escapeHtml(s.section || "")}</span>`).join(" ");
+    box.innerHTML = `<div class="bubble" style="background:var(--violet-soft);border-radius:12px;padding:.8rem 1rem">${renderMarkdown(r.text)}</div>
+      <div class="msg-tools mt-2">${src ? "<span>Found in:</span>" + src : ""}<span class="mode-badge ${r.mode === "live" ? "mode-live" : "mode-demo"}">${r.mode === "live" ? "Gemini" : "Demo mode · not AI-generated"}</span></div>`;
+  } catch (err) { box.innerHTML = `<div class="text-danger">${escapeHtml(err.message)}</div>`; }
+  btn.disabled = false;
+};
+</script>{% endblock %}

@@ -1,0 +1,38 @@
+{% extends 'base.html' %}{% from '_macros.html' import empty, status_badge, prio_badge, demo %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+{% include 'dashboard/_askbar.html' %}
+{% set k = data.kpis %}
+{% if data.demo_records %}<div class="alert alert-warning py-2 small"><i class="fa-solid fa-flask me-1"></i>Figures include <strong>{{ data.demo_records }} demo record(s)</strong>. Remove them with <code>flask clear-demo</code>.</div>{% endif %}
+<div class="row g-3 mb-3">
+  {% for icon, label, val in [('fa-users','Employees',k.employees),('fa-user-clock','Active this week',k.active_users),('fa-folder-open','Documents',k.documents),('fa-circle-check','Completed tasks',k.tasks_completed),('fa-hourglass-half','Pending tasks',k.tasks_pending),('fa-triangle-exclamation','Overdue',k.tasks_overdue)] %}
+  <div class="col-6 col-md-4 col-xl-2"><div class="card kpi"><div class="kpi-ico"><i class="fa-solid {{ icon }}"></i></div><div><div class="v">{{ val }}</div><div class="l">{{ label }}</div></div></div></div>{% endfor %}
+</div>
+<div class="row g-3 mb-3">
+  <div class="col-lg-8"><div class="card h-100"><div class="card-header">Monthly activity</div><div class="card-body"><div class="chart-box"><canvas id="cMonthly"></canvas></div></div></div></div>
+  <div class="col-lg-4"><div class="card h-100"><div class="card-header">Task status</div><div class="card-body"><div class="chart-box"><canvas id="cStatus"></canvas></div></div></div></div>
+</div>
+<div class="row g-3">
+  <div class="col-lg-7"><div class="card h-100"><div class="card-header d-flex justify-content-between">Upcoming &amp; open tasks <a class="small fw-semibold" href="{{ url_for('tasks.list_tasks') }}">View all</a></div>
+    {% if tasks %}<div class="table-responsive"><table class="table table-hover"><thead><tr><th class="ps-3">Task</th><th>Assignee</th><th>Priority</th><th>Status</th><th>Due</th></tr></thead><tbody>
+    {% for t in tasks %}<tr><td class="ps-3"><a class="fw-semibold" href="{{ url_for('tasks.detail', tid=t.id) }}">{{ t.title }}</a>{{ demo(t) }}</td><td>{{ t.assignee.full_name if t.assignee else '—' }}</td><td>{{ prio_badge(t.priority) }}</td><td>{{ status_badge(t) }}</td><td>{{ t.due_date|d }}</td></tr>{% endfor %}
+    </tbody></table></div>{% else %}{{ empty('fa-list-check','No open tasks','Create the first task to start tracking work.', url_for('tasks.new'), 'New task') }}{% endif %}</div></div>
+  <div class="col-lg-5"><div class="card mb-3"><div class="card-header d-flex justify-content-between">Security (24 h)<a class="small fw-semibold" href="{{ url_for('admin.audit') }}">Audit logs</a></div>
+    <div class="card-body py-2">{% if failed_logins %}<div class="text-danger fw-semibold mb-2"><i class="fa-solid fa-triangle-exclamation me-1"></i>{{ failed_logins }} failed login attempt(s)</div>{% else %}<div class="text-success fw-semibold mb-2"><i class="fa-solid fa-shield-check me-1"></i>No failed logins</div>{% endif %}
+    {% for l in logs %}<div class="d-flex justify-content-between small py-1 border-top"><span><strong>{{ l.action|replace('_',' ') }}</strong> <span class="text-muted">{{ l.user_email or 'anonymous' }}</span></span><span class="text-muted">{{ l.created_at|dt('%d %b %H:%M') }}</span></div>{% endfor %}</div></div>
+    <div class="card"><div class="card-header">Announcements</div><div class="card-body py-2">
+      {% for a in announcements %}<div class="py-2 {{ 'border-top' if not loop.first }}"><div class="fw-semibold">{% if a.is_pinned %}<i class="fa-solid fa-thumbtack text-muted me-1"></i>{% endif %}{{ a.title }}{{ demo(a) }}</div><div class="small text-muted">{{ a.body|truncate(110) }}</div></div>
+      {% else %}{{ empty('fa-bullhorn','No announcements yet','Post one from the Notifications page.') }}{% endfor %}</div></div></div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="{{ url_for('static', filename='js/charts.js') }}"></script>
+<script>
+const D = {{ data|tojson }};
+if (hasData(D.status.values)) mkChart("cStatus","doughnut",{labels:D.status.labels,datasets:[{data:D.status.values,backgroundColor:D.status.labels.map(l=>STATUS_COLORS[l]),borderWidth:0}]},{cutout:"68%"}); else showEmpty("cStatus");
+if (D.monthly.labels.length) mkChart("cMonthly","line",{labels:D.monthly.labels,datasets:[
+ {label:"Tasks created",data:D.monthly.created,borderColor:PALETTE[0],backgroundColor:"rgba(107,91,210,.12)",fill:true,tension:.35},
+ {label:"Tasks completed",data:D.monthly.completed,borderColor:"#1E9E6A",tension:.35},
+ {label:"Documents",data:D.monthly.documents,borderColor:PALETTE[3],borderDash:[5,4],tension:.35}]});
+</script>{% endblock %}

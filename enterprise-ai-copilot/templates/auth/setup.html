@@ -1,0 +1,13 @@
+{% extends 'base.html' %}{% block title %}First-time setup{% endblock %}
+{% block auth %}<div class="auth-shell">{% include 'auth/_side.html' %}
+<section class="auth-main"><div class="auth-card">
+  <h2 class="mb-1">Create the administrator</h2><p class="text-muted mb-4">This page works once. After the first administrator exists it is disabled.</p>
+  <form method="post" novalidate>{{ form.hidden_tag() }}<input type="hidden" name="department_id" value="0">
+    <div class="mb-3"><label class="form-label">Full name</label><input class="form-control" name="full_name" value="{{ form.full_name.data or '' }}" required></div>
+    <div class="mb-3"><label class="form-label">Email</label><input class="form-control" type="email" name="email" value="{{ form.email.data or '' }}" required></div>
+    <div class="row g-3 mb-2"><div class="col-6"><label class="form-label">Password</label><input class="form-control" type="password" name="password" autocomplete="new-password" required></div>
+    <div class="col-6"><label class="form-label">Confirm</label><input class="form-control" type="password" name="confirm" autocomplete="new-password" required></div></div>
+    <div class="form-text mb-3">At least 8 characters with a letter and a number.</div>
+    {% for f in form.errors.values() %}{% for e in f %}<div class="text-danger small">{{ e }}</div>{% endfor %}{% endfor %}
+    <button class="btn btn-primary w-100" type="submit">Create administrator</button>
+  </form></div></section></div>{% endblock %}

@@ -1,0 +1,20 @@
+{% extends 'base.html' %}{% from '_macros.html' import empty, demo %}
+{% block title %}Knowledge Base{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Knowledge Base</h1><p>Company policies, HR guides, technical documentation and FAQs. The AI Co-Pilot reads these when answering.</p></div>
+  {% if current_user.is_admin %}<a class="btn btn-primary" href="{{ url_for('knowledge.new') }}"><i class="fa-solid fa-plus me-1"></i>New entry</a>{% endif %}</div>
+<div class="d-flex flex-wrap gap-2 mb-3 align-items-center">
+  <a class="chip {{ 'bg-body-secondary' if not cat }}" href="{{ url_for('knowledge.index', q=q) }}">All</a>
+  {% for c in categories %}<a class="chip" style="{{ 'background:var(--violet-soft);border-color:var(--violet)' if c == cat }}" href="{{ url_for('knowledge.index', category=c, q=q) }}">{{ c }}</a>{% endfor %}
+  <form class="ms-auto" method="get"><input type="hidden" name="category" value="{{ cat }}"><input class="form-control" name="q" value="{{ q }}" placeholder="Search knowledge base" style="width:240px"></form></div>
+<div class="row g-3">
+ <div class="col-lg-8">{% if entries %}<div class="d-grid gap-2">{% for e in entries %}
+  <a class="card text-decoration-none" href="{{ url_for('knowledge.view', kid=e.id) }}" style="color:inherit"><div class="card-body d-flex justify-content-between gap-3">
+   <div><div class="fw-bold">{{ e.title }}{{ demo(e) }}{% if not e.is_published %}<span class="badge text-bg-secondary ms-2">Draft</span>{% endif %}</div><div class="small text-muted mt-1">{{ e.content|truncate(140) }}</div></div>
+   <div class="text-end small text-muted flex-none" style="min-width:110px"><span class="badge" style="background:var(--violet-soft);color:var(--violet-ink)">{{ e.category }}</span><div class="mt-1">{{ e.department.name if e.department else 'Everyone' }}</div></div></div></a>{% endfor %}</div>
+  {% else %}<div class="card">{{ empty('fa-book-open','Nothing here yet','Knowledge-base entries you are allowed to read will be listed here.', url_for('knowledge.new') if current_user.is_admin else None, 'Add the first entry') }}</div>{% endif %}</div>
+ <div class="col-lg-4"><div class="card"><div class="card-header">Company announcements</div><div class="card-body py-2">
+  {% for a in announcements %}<div class="py-2 {{ 'border-top' if not loop.first }}"><div class="fw-semibold">{{ a.title }}{{ demo(a) }}</div><div class="small text-muted">{{ a.created_at|d }} · {{ a.body|truncate(100) }}</div></div>
+  {% else %}<div class="text-muted small py-3">No announcements yet.</div>{% endfor %}</div></div></div>
+</div>
+{% endblock %}

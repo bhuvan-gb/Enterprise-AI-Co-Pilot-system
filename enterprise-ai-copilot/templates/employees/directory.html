@@ -1,0 +1,19 @@
+{% extends 'base.html' %}{% from '_macros.html' import avatar, empty, pager, demo, csrf %}
+{% block title %}Employees{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Employee directory</h1><p>{{ pag.total }} {{ 'people' if pag.total != 1 else 'person' }}</p></div>
+  {% if current_user.is_admin %}<div class="d-flex gap-2"><a class="btn btn-ghost" href="{{ url_for('employees.departments') }}"><i class="fa-solid fa-sitemap me-1"></i>Departments</a><a class="btn btn-primary" href="{{ url_for('employees.new') }}"><i class="fa-solid fa-user-plus me-1"></i>Add employee</a></div>{% endif %}</div>
+<form class="row g-2 mb-3" method="get">
+  <div class="col-md-5"><input class="form-control" name="q" value="{{ q }}" placeholder="Search name, email, ID or designation"></div>
+  <div class="col-md-3"><select class="form-select" name="department" onchange="this.form.submit()"><option value="">All departments</option>{% for d in departments %}<option value="{{ d.id }}" {{ 'selected' if dept == d.id }}>{{ d.name }}</option>{% endfor %}</select></div>
+  {% if current_user.is_admin %}<div class="col-md-2"><select class="form-select" name="status" onchange="this.form.submit()"><option value="active" {{ 'selected' if status == 'active' }}>Active</option><option value="inactive" {{ 'selected' if status == 'inactive' }}>Deactivated</option><option value="all" {{ 'selected' if status == 'all' }}>All</option></select></div>{% endif %}
+  <div class="col-auto"><button class="btn btn-ghost">Filter</button></div></form>
+<div class="card">{% if pag.items %}<div class="table-responsive"><table class="table table-hover"><thead><tr><th class="ps-3">Employee</th><th>ID</th><th>Department</th><th>Designation</th><th>Joined</th>{% if current_user.is_admin %}<th>Status</th><th class="text-end pe-3">Actions</th>{% endif %}</tr></thead><tbody>
+{% for u in pag.items %}<tr><td class="ps-3"><div class="d-flex align-items-center gap-2">{{ avatar(u, 36) }}<div><a class="fw-semibold" href="{{ url_for('employees.profile', uid=u.id) }}">{{ u.full_name }}</a>{{ demo(u) }}<div class="small text-muted">{{ u.email }}</div></div></div></td>
+<td>{{ u.employee_id }}</td><td>{{ u.department.name if u.department else '—' }}</td><td>{{ u.designation or '—' }}</td><td>{{ u.joining_date|d }}</td>
+{% if current_user.is_admin %}<td><span class="badge {{ 'st-Completed' if u.active else 'st-Overdue' }}">{{ 'Active' if u.active else 'Deactivated' }}</span>{% if u.is_admin %}<span class="badge ms-1" style="background:var(--violet-soft);color:var(--violet-ink)">Admin</span>{% endif %}</td>
+<td class="text-end pe-3 text-nowrap"><a class="btn btn-ghost btn-sm" href="{{ url_for('employees.edit', uid=u.id) }}" title="Edit"><i class="fa-solid fa-pen"></i></a>
+<form class="d-inline" method="post" action="{{ url_for('employees.toggle_active', uid=u.id) }}" data-confirm="{{ 'Deactivate' if u.active else 'Reactivate' }} {{ u.full_name }}?">{{ csrf() }}<button class="btn btn-ghost btn-sm" title="{{ 'Deactivate' if u.active else 'Reactivate' }}"><i class="fa-solid {{ 'fa-user-slash' if u.active else 'fa-user-check' }}"></i></button></form></td>{% endif %}</tr>{% endfor %}
+</tbody></table></div>{% else %}{{ empty('fa-users','No employees match','Adjust the filters or add a new employee.') }}{% endif %}</div>
+{{ pager(pag, 'employees.directory', q=q, department=dept, status=status) }}
+{% endblock %}

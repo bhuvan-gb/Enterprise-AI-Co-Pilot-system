@@ -1,0 +1,47 @@
+{% extends 'base.html' %}{% from '_macros.html' import empty %}
+{% block title %}Analytics{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Business analytics</h1><p>Computed live from database records for the selected period.</p></div>
+  <button class="btn btn-primary" id="aiBtn"><i class="fa-solid fa-wand-magic-sparkles me-1"></i>AI business summary</button></div>
+<form class="card mb-3" method="get" id="filters"><div class="card-body row g-2 align-items-end">
+  <div class="col-6 col-md-2"><label class="form-label">From</label><input class="form-control" type="date" name="start" value="{{ start.isoformat() }}"></div>
+  <div class="col-6 col-md-2"><label class="form-label">To</label><input class="form-control" type="date" name="end" value="{{ end.isoformat() }}"></div>
+  <div class="col-md-3"><label class="form-label">Department</label><select class="form-select" name="department"><option value="">All departments</option>{% for d in departments %}<option value="{{ d.id }}" {{ 'selected' if dept == d.id }}>{{ d.name }}</option>{% endfor %}</select></div>
+  <div class="col-md-3"><div class="form-check form-switch mb-2"><input type="hidden" name="demo" value="0"><input class="form-check-input" type="checkbox" name="demo" value="1" id="demo" {{ 'checked' if include_demo }}><label class="form-check-label" for="demo">Include demo records</label></div></div>
+  <div class="col-md-2 d-flex gap-2"><button class="btn btn-primary flex-grow-1">Apply</button><a class="btn btn-ghost" href="{{ url_for('analytics.dashboard') }}" title="Reset"><i class="fa-solid fa-rotate-left"></i></a></div></div></form>
+{% if data.demo_records %}<div class="alert alert-warning py-2 small"><i class="fa-solid fa-flask me-1"></i>This view contains <strong>{{ data.demo_records }} demo record(s)</strong>. Untick “Include demo records” to see real data only.</div>{% endif %}
+<div class="card mb-3 d-none" id="aiBox"><div class="card-body"><div class="d-flex justify-content-between mb-2"><strong>Executive summary</strong><button class="btn-close" onclick="aiBox.classList.add('d-none')"></button></div><div id="aiOut"></div></div></div>
+{% set k = data.kpis %}
+<div class="row g-3 mb-3">{% for icon, label, val in [('fa-users','Total employees',k.employees),('fa-user-clock','Active users (7 days)',k.active_users),('fa-folder-open','Documents',k.documents),('fa-circle-check','Completed tasks',k.tasks_completed),('fa-hourglass-half','Pending tasks',k.tasks_pending),('fa-percent','Completion rate',k.completion_rate ~ '%')] %}
+  <div class="col-6 col-md-4 col-xl-2"><div class="card kpi"><div class="kpi-ico"><i class="fa-solid {{ icon }}"></i></div><div><div class="v">{{ val }}</div><div class="l">{{ label }}</div></div></div></div>{% endfor %}</div>
+<div class="row g-3 mb-3">
+  <div class="col-lg-8"><div class="card h-100"><div class="card-header">Monthly activity</div><div class="card-body"><div class="chart-box"><canvas id="cMonthly"></canvas></div></div></div></div>
+  <div class="col-lg-4"><div class="card h-100"><div class="card-header">Task status</div><div class="card-body"><div class="chart-box"><canvas id="cStatus"></canvas></div></div></div></div>
+  <div class="col-lg-6"><div class="card h-100"><div class="card-header">Tasks by department</div><div class="card-body"><div class="chart-box"><canvas id="cDept"></canvas></div></div></div></div>
+  <div class="col-lg-6"><div class="card h-100"><div class="card-header">Department completion rate (%)</div><div class="card-body"><div class="chart-box"><canvas id="cRate"></canvas></div></div></div></div>
+  <div class="col-lg-4"><div class="card h-100"><div class="card-header">Priority mix</div><div class="card-body"><div class="chart-box" style="height:240px"><canvas id="cPrio"></canvas></div></div></div></div>
+  <div class="col-lg-8"><div class="card h-100"><div class="card-header">Department table</div><div class="table-responsive">
+   <table class="table"><thead><tr><th class="ps-3">Department</th><th>Employees</th><th>Tasks</th><th>Done</th><th>Rate</th></tr></thead><tbody>
+   {% for i in range(data.departments.labels|length) %}<tr><td class="ps-3">{{ data.departments.labels[i] }}</td><td>{{ data.departments.employees[i] }}</td><td>{{ data.departments.tasks[i] }}</td><td>{{ data.departments.completed[i] }}</td><td>{{ data.departments.rate[i] }}%</td></tr>
+   {% else %}<tr><td colspan="5">{{ empty('fa-sitemap','No departments','Create departments under Employees.') }}</td></tr>{% endfor %}</tbody></table></div></div></div></div>
+{% endblock %}
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="{{ url_for('static', filename='js/charts.js') }}"></script>
+<script>
+const D = {{ data|tojson }}, aiBox = document.getElementById("aiBox");
+if (hasData(D.status.values)) mkChart("cStatus","doughnut",{labels:D.status.labels,datasets:[{data:D.status.values,backgroundColor:D.status.labels.map(l=>STATUS_COLORS[l]),borderWidth:0}]},{cutout:"68%"}); else showEmpty("cStatus");
+if (hasData(D.priority.values)) mkChart("cPrio","doughnut",{labels:D.priority.labels,datasets:[{data:D.priority.values,backgroundColor:["#9AA4C2","#2F6FDE","#C98512","#D6453D"],borderWidth:0}]},{cutout:"60%"}); else showEmpty("cPrio");
+mkChart("cMonthly","line",{labels:D.monthly.labels,datasets:[{label:"Tasks created",data:D.monthly.created,borderColor:PALETTE[0],backgroundColor:"rgba(107,91,210,.12)",fill:true,tension:.35},{label:"Tasks completed",data:D.monthly.completed,borderColor:"#1E9E6A",tension:.35},{label:"Documents",data:D.monthly.documents,borderColor:PALETTE[3],borderDash:[5,4],tension:.35}]});
+if (D.departments.labels.length) {
+  mkChart("cDept","bar",{labels:D.departments.labels,datasets:[{label:"Tasks",data:D.departments.tasks,backgroundColor:"#9A8CFF",borderRadius:6},{label:"Completed",data:D.departments.completed,backgroundColor:"#1E9E6A",borderRadius:6}]});
+  mkChart("cRate","bar",{labels:D.departments.labels,datasets:[{label:"Completion %",data:D.departments.rate,backgroundColor:PALETTE[0],borderRadius:6}]},{indexAxis:"y",plugins:{legend:{display:false}},scales:{x:{max:100,beginAtZero:true},y:{}}});
+} else { showEmpty("cDept"); showEmpty("cRate"); }
+document.getElementById("aiBtn").onclick = async function () {
+  const b = this, old = b.innerHTML; b.disabled = true; b.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Analysing…';
+  try { const fd = new FormData(document.getElementById("filters")); const r = await api("{{ url_for('analytics.ai_summary') }}", { form: fd });
+    aiBox.classList.remove("d-none"); document.getElementById("aiOut").innerHTML = renderMarkdown(r.text) + `<span class="mode-badge ${r.mode === "live" ? "mode-live" : "mode-demo"}">${r.mode === "live" ? "Gemini" : "Demo mode · not AI-generated"}</span>`;
+  } catch (e) { toast(e.message, "danger"); }
+  b.disabled = false; b.innerHTML = old;
+};
+</script>{% endblock %}

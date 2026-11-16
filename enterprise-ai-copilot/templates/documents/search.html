@@ -1,0 +1,11 @@
+{% extends 'base.html' %}{% from '_macros.html' import empty %}
+{% block title %}Search documents{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Search inside documents</h1><p>Finds the most relevant passages across documents and knowledge-base articles you can access ({{ backend.name }}).</p></div></div>
+<form class="d-flex gap-2 mb-4" method="get"><input class="form-control" name="q" value="{{ q }}" placeholder="Search by meaning, e.g. “carry forward leave”" autofocus><button class="btn btn-primary">Search</button></form>
+{% if q %}{% if results %}<div class="d-grid gap-3">{% for r in results %}<div class="card"><div class="card-body">
+  <div class="d-flex justify-content-between"><a class="fw-bold" href="{{ r.url }}"><i class="fa-solid {{ 'fa-book-open' if r.type == 'knowledge' else 'fa-file-lines' }} me-1"></i>{{ r.title }}</a>
+  <span class="small text-muted">{% if r.page %}page {{ r.page }}{% elif r.section %}{{ r.section }}{% endif %} · relevance {{ '%.0f'|format(r.score * 100) }}%</span></div>
+  <p class="mb-0 mt-2 small prewrap">{{ r.text|truncate(420) }}</p></div></div>{% endfor %}</div>
+{% else %}<div class="card">{{ empty('fa-magnifying-glass', 'No matching passages', 'Try different words, or upload documents that cover this topic.', url_for('documents.library'), 'Open library') }}</div>{% endif %}{% endif %}
+{% endblock %}

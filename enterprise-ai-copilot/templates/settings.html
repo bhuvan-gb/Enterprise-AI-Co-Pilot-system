@@ -1,0 +1,28 @@
+{% extends 'base.html' %}{% from '_macros.html' import avatar, csrf %}
+{% block title %}Settings{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Settings</h1><p>Manage your profile, security and preferences.</p></div></div>
+<div class="row g-3"><div class="col-lg-7">
+ <div class="card mb-3"><div class="card-header">Profile</div><div class="card-body"><form method="post" enctype="multipart/form-data">{{ csrf() }}<input type="hidden" name="section" value="profile">
+  <div class="d-flex align-items-center gap-3 mb-3">{{ avatar(current_user, 72) }}<div><label class="form-label">Profile picture</label><input class="form-control" type="file" name="avatar" accept="image/png,image/jpeg,image/gif,image/webp"><div class="form-text">PNG, JPG, GIF or WebP, up to 2 MB.</div></div></div>
+  <div class="row g-3"><div class="col-md-6"><label class="form-label">Full name</label><input class="form-control" name="full_name" value="{{ current_user.full_name }}" required maxlength="120"></div>
+  <div class="col-md-6"><label class="form-label">Email</label><input class="form-control" type="email" name="email" value="{{ current_user.email }}" required></div>
+  <div class="col-md-6"><label class="form-label">Phone</label><input class="form-control" name="phone" value="{{ current_user.phone or '' }}" maxlength="30"></div>
+  <div class="col-md-6"><label class="form-label">Employee ID · Department</label><input class="form-control" value="{{ current_user.employee_id }} · {{ current_user.department.name if current_user.department else 'None' }}" disabled></div></div>
+  <button class="btn btn-primary mt-3">Save profile</button></form></div></div>
+ <div class="card"><div class="card-header">Change password</div><div class="card-body"><form method="post">{{ csrf() }}<input type="hidden" name="section" value="password">
+  <div class="mb-2"><label class="form-label">Current password</label><input class="form-control" type="password" name="current_password" autocomplete="current-password" required></div>
+  <div class="row g-2"><div class="col-md-6"><label class="form-label">New password</label><input class="form-control" type="password" name="new_password" autocomplete="new-password" required></div>
+  <div class="col-md-6"><label class="form-label">Confirm new password</label><input class="form-control" type="password" name="confirm_password" autocomplete="new-password" required></div></div>
+  <div class="form-text">At least 8 characters with a letter and a number.</div><button class="btn btn-primary mt-3">Update password</button></form></div></div></div>
+<div class="col-lg-5"><div class="card mb-3"><div class="card-header">Preferences</div><div class="card-body"><form method="post">{{ csrf() }}<input type="hidden" name="section" value="preferences">
+  <label class="form-label">Theme</label><div class="btn-group w-100 mb-3"><input type="radio" class="btn-check" name="theme" id="tl" value="light" {{ 'checked' if current_user.theme == 'light' }}><label class="btn btn-ghost" for="tl"><i class="fa-solid fa-sun me-1"></i>Light</label>
+  <input type="radio" class="btn-check" name="theme" id="td" value="dark" {{ 'checked' if current_user.theme == 'dark' }}><label class="btn btn-ghost" for="td"><i class="fa-solid fa-moon me-1"></i>Dark</label></div>
+  <label class="form-label">Notify me about</label>
+  {% for name, label, on in [('notify_tasks','Task assignments and deadlines',current_user.notify_tasks),('notify_documents','New shared documents',current_user.notify_documents),('notify_announcements','Company announcements',current_user.notify_announcements)] %}
+  <div class="form-check form-switch mb-2"><input class="form-check-input" type="checkbox" name="{{ name }}" id="{{ name }}" {{ 'checked' if on }}><label class="form-check-label" for="{{ name }}">{{ label }}</label></div>{% endfor %}
+  <button class="btn btn-primary mt-2">Save preferences</button></form></div></div>
+ <div class="card"><div class="card-header">Account</div><div class="card-body small"><dl class="row mb-3"><dt class="col-5 text-muted">Role</dt><dd class="col-7">{{ 'Administrator' if current_user.is_admin else 'Employee' }}</dd>
+  <dt class="col-5 text-muted">Member since</dt><dd class="col-7">{{ current_user.created_at|d }}</dd><dt class="col-5 text-muted">Last login</dt><dd class="col-7">{{ current_user.last_login|dt }}</dd></dl>
+  <form method="post" action="{{ url_for('auth.logout') }}">{{ csrf() }}<button class="btn btn-outline-danger w-100"><i class="fa-solid fa-arrow-right-from-bracket me-1"></i>Sign out</button></form></div></div></div></div>
+{% endblock %}

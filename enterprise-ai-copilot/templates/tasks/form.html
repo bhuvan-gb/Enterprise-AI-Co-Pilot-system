@@ -1,0 +1,32 @@
+{% extends 'base.html' %}{% from '_macros.html' import csrf %}
+{% block title %}{{ 'Edit' if task else 'New' }} task{% endblock %}
+{% block content %}
+{% set f = form %}
+<div class="page-head"><div><h1>{{ 'Edit task' if task else 'New task' }}</h1>{% if not live %}<p><span class="mode-badge mode-demo">AI helpers run in demo mode</span> — they use simple rules, not Gemini.</p>{% endif %}</div></div>
+<form method="post" class="card"><div class="card-body">{{ csrf() }}<div class="row g-3">
+  <div class="col-12"><label class="form-label">Title *</label><input class="form-control" id="title" name="title" required maxlength="200" value="{{ f.get('title', task.title if task else '') }}"></div>
+  <div class="col-12"><div class="d-flex justify-content-between"><label class="form-label">Description</label><button type="button" class="btn btn-ghost btn-sm" id="aiDesc"><i class="fa-solid fa-wand-magic-sparkles me-1"></i>Generate</button></div>
+    <textarea class="form-control" id="description" name="description" rows="4">{{ f.get('description', (task.description or '') if task else '') }}</textarea></div>
+  <div class="col-md-3"><label class="form-label">Category</label><select class="form-select" id="category" name="category">{% for c in categories %}<option {{ 'selected' if c == f.get('category', task.category if task else 'General') }}>{{ c }}</option>{% endfor %}</select></div>
+  <div class="col-md-3"><div class="d-flex justify-content-between"><label class="form-label">Priority</label><a href="#" class="small fw-semibold" id="aiPrio">Suggest</a></div>
+    <select class="form-select" id="priority" name="priority">{% for p in priorities %}<option {{ 'selected' if p == f.get('priority', task.priority if task else 'Medium') }}>{{ p }}</option>{% endfor %}</select><div class="form-text" id="prioWhy"></div></div>
+  <div class="col-md-3"><label class="form-label">Deadline</label><input class="form-control" type="date" id="due" name="due_date" value="{{ f.get('due_date', task.due_date.isoformat() if task and task.due_date else '') }}"></div>
+  <div class="col-md-3"><label class="form-label">Assign to</label>{% if current_user.is_admin %}<select class="form-select" name="assigned_to"><option value="">Unassigned</option>{% for u in users %}<option value="{{ u.id }}" {{ 'selected' if (f.get('assigned_to')|int(0) if f else (task.assigned_to if task else 0)) == u.id }}>{{ u.full_name }}</option>{% endfor %}</select>
+    {% else %}<input class="form-control" value="Me ({{ current_user.full_name }})" disabled>{% endif %}</div>
+  {% if not task %}<div class="col-12"><div class="d-flex justify-content-between"><label class="form-label">Subtasks (optional)</label><div class="d-flex gap-2"><button type="button" class="btn btn-ghost btn-sm" id="aiSub"><i class="fa-solid fa-wand-magic-sparkles me-1"></i>Break down</button><button type="button" class="btn btn-ghost btn-sm" id="addSub"><i class="fa-solid fa-plus me-1"></i>Add</button></div></div><div id="subs" class="d-grid gap-2"></div></div>{% endif %}</div>
+  <div class="mt-4 d-flex gap-2"><button class="btn btn-primary">{{ 'Save changes' if task else 'Create task' }}</button><a class="btn btn-ghost" href="{{ url_for('tasks.detail', tid=task.id) if task else url_for('tasks.list_tasks') }}">Cancel</a></div></div></form>
+{% endblock %}
+{% block scripts %}
+<script>
+const val = id => document.getElementById(id).value;
+function addSub(text = "") { const d = document.createElement("div"); d.className = "input-group"; d.innerHTML = `<input class="form-control" name="subtasks" maxlength="190"><button class="btn btn-ghost" type="button" aria-label="Remove"><i class="fa-solid fa-xmark"></i></button>`; d.firstChild.value = text; d.lastChild.onclick = () => d.remove(); document.getElementById("subs").appendChild(d); }
+async function ai(btn, url, payload, apply) {
+  const old = btn.innerHTML; btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+  try { const r = await api(url, { json: payload }); apply(r); if (r.mode !== "live") toast("Demo mode: this suggestion is rule-based, not AI-generated.", "warning"); } catch (e) { toast(e.message, "danger"); }
+  btn.disabled = false; btn.innerHTML = old;
+}
+document.getElementById("aiDesc").onclick = function () { ai(this, "{{ url_for('tasks.ai_description') }}", { title: val("title"), category: val("category") }, r => document.getElementById("description").value = r.description); };
+document.getElementById("aiPrio").onclick = function (e) { e.preventDefault(); ai(this, "{{ url_for('tasks.ai_priority') }}", { title: val("title"), description: val("description"), due_date: val("due") }, r => { document.getElementById("priority").value = r.priority; document.getElementById("prioWhy").textContent = r.reason; }); };
+{% if not task %}document.getElementById("addSub").onclick = () => addSub();
+document.getElementById("aiSub").onclick = function () { ai(this, "{{ url_for('tasks.ai_subtasks') }}", { title: val("title"), description: val("description") }, r => r.subtasks.forEach(addSub)); };{% endif %}
+</script>{% endblock %}

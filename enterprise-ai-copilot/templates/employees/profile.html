@@ -1,0 +1,19 @@
+{% extends 'base.html' %}{% from '_macros.html' import avatar, status_badge, prio_badge, csrf, delete_btn, demo %}
+{% block title %}{{ u.full_name }}{% endblock %}
+{% block content %}
+<div class="page-head"><div class="d-flex align-items-center gap-3">{{ avatar(u, 64) }}<div><h1>{{ u.full_name }}{{ demo(u) }}</h1><p>{{ u.designation or 'No designation' }} · {{ u.department.name if u.department else 'No department' }}</p></div></div>
+  <div class="d-flex gap-2">{% if current_user.is_admin %}<a class="btn btn-primary" href="{{ url_for('employees.edit', uid=u.id) }}"><i class="fa-solid fa-pen me-1"></i>Edit</a>
+  {% if u.id != current_user.id %}{{ delete_btn(url_for('employees.delete', uid=u.id), 'Delete this employee permanently? Deactivate instead if they own records.', 'Delete', 'btn-outline-danger') }}{% endif %}
+  {% elif u.id == current_user.id %}<a class="btn btn-primary" href="{{ url_for('main.settings') }}">Edit my profile</a>{% endif %}</div></div>
+<div class="row g-3"><div class="col-lg-5"><div class="card"><div class="card-header">Details</div><div class="card-body"><dl class="row mb-0">
+  <dt class="col-5 text-muted fw-semibold">Employee ID</dt><dd class="col-7">{{ u.employee_id }}</dd>
+  <dt class="col-5 text-muted fw-semibold">Email</dt><dd class="col-7 text-break"><a href="mailto:{{ u.email }}">{{ u.email }}</a></dd>
+  <dt class="col-5 text-muted fw-semibold">Phone</dt><dd class="col-7">{% if current_user.is_admin or u.id == current_user.id %}{{ u.phone or '—' }}{% else %}<span class="text-muted">Visible to admins</span>{% endif %}</dd>
+  <dt class="col-5 text-muted fw-semibold">Joined</dt><dd class="col-7">{{ u.joining_date|d }}</dd>
+  <dt class="col-5 text-muted fw-semibold">Role</dt><dd class="col-7">{{ 'Administrator' if u.is_admin else 'Employee' }}</dd>
+  {% if current_user.is_admin %}<dt class="col-5 text-muted fw-semibold">Status</dt><dd class="col-7"><span class="badge {{ 'st-Completed' if u.active else 'st-Overdue' }}">{{ 'Active' if u.active else 'Deactivated' }}</span></dd>
+  <dt class="col-5 text-muted fw-semibold">Last login</dt><dd class="col-7">{{ u.last_login|dt }}</dd>{% endif %}</dl></div></div></div>
+ <div class="col-lg-7"><div class="row g-3 mb-3">{% for l, v in [('Assigned', stats.assigned), ('Open', stats.open), ('Completed', stats.completed), ('Shared docs', stats.documents)] %}
+  <div class="col-6 col-md-3"><div class="card kpi d-block text-center"><div class="v">{{ v }}</div><div class="l">{{ l }}</div></div></div>{% endfor %}</div>
+  {% if current_user.is_admin %}<div class="card"><div class="card-header">Recent tasks</div><div class="list-group list-group-flush">{% for t in recent %}<a class="list-group-item bg-transparent d-flex justify-content-between" href="{{ url_for('tasks.detail', tid=t.id) }}"><span>{{ t.title }}</span><span class="d-flex gap-1">{{ prio_badge(t.priority) }}{{ status_badge(t) }}</span></a>{% else %}<div class="p-3 text-muted">No tasks assigned.</div>{% endfor %}</div></div>{% endif %}</div></div>
+{% endblock %}
